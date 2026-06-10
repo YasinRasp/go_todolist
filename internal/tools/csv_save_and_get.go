@@ -4,23 +4,43 @@ import (
 	"encoding/csv"
 	"errors"
 
-	//"fmt"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
+	"syscall"
 	//"github.com/spf13/cobra"
 )
 
 type Task struct {
-	ID          int       `csv:"id"`
-	Description string    `csv:"description"`
-	DateCreated time.Time `csv:"date_created"`
-	Done        bool      `csv:"done"`
+	ID          int
+	Description string
+	DateCreated time.Time
+	Done        bool
 }
 
 func CheckFile(name string) bool {
 	_, err := os.Stat(name)
 	return !errors.Is(err, os.ErrNotExist)
+}
+
+func loadFile(filepath string) (*os.File, error) {
+	f, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, os.ModePerm)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file for reading")
+	}
+
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+
+	return f, nil
+}
+
+func closeFile(f *os.File) error {
+	syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	return f.Close()
 }
 
 func CheckCsv() ([][]string, int) {
@@ -29,11 +49,11 @@ func CheckCsv() ([][]string, int) {
 	if !CheckFile("file.csv") {
 		return data, 0
 	}
-	file, err := os.Open("file.csv")
+	file, err := loadFile("file.csv")
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
+	defer closeFile(file)
 	var rd = csv.NewReader(file)
 	data, err = rd.ReadAll()
 	if err != nil {

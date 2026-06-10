@@ -54,7 +54,7 @@ func ListTask(cmd *cobra.Command, args []string) {
 
 	data, _ := tools.CheckCsv()
 	var tasks []tools.Task = tools.ConvertStT(data)
-	if len(data) == 0 {
+	if len(tasks) == 0 {
 		fmt.Println("No tasks in your schedule, add one with the add command.")
 		return
 	}
@@ -76,6 +76,20 @@ func ListTask(cmd *cobra.Command, args []string) {
 		} else if !row.Done {
 
 			fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", row.ID, row.Description, timediff.TimeDiff(row.DateCreated), done)
+		}
+	}
+}
+
+func printID(tasks []tools.Task, id int, stat string) {
+
+	var w = tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
+	defer w.Flush()
+
+	fmt.Fprintln(w, "ID\tDescription\tDate Created\tStatus")
+
+	for _, row := range tasks {
+		if row.ID == id {
+			fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", row.ID, row.Description, timediff.TimeDiff(row.DateCreated), stat)
 		}
 	}
 }
@@ -121,7 +135,9 @@ func CompTask(cmd *cobra.Command, args []string) {
 	}
 	data = tools.ConvertTtS(tasks)
 	tools.SaveCsv(data)
+	printID(tasks, cid, "✔️")
 }
+
 func DelTask(cmd *cobra.Command, args []string) {
 
 	var arg string
@@ -153,9 +169,11 @@ func DelTask(cmd *cobra.Command, args []string) {
 	var tasks []tools.Task = tools.ConvertStT(data)
 	for irow, task := range tasks {
 		if task.ID == cid {
+			printID(tasks, cid, "🪦")
 			tasks = append(tasks[:irow], tasks[irow+1:]...)
 		}
 	}
 	data = tools.ConvertTtS(tasks)
 	tools.SaveCsv(data)
+
 }
